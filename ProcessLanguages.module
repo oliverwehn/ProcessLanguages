@@ -339,8 +339,9 @@ class ProcessLanguages extends Process {
             current(current($settings))->attr('disabled', 'disabled');
         }
         // first we have to find and remove the delete link, temporarly
-        $delete = $form->children('id=ProcessPageEditDelete')->first();
-        $form->remove($delete);
+        if($delete = $form->children('id=ProcessPageEditDelete')->first()) {
+            $form->remove($delete);            
+        }
         // after that we have to find and remove the view link, also temporarily
         if($view = $form->children('id=ProcessPageEditView')->first()) {
             $form->remove($view);
@@ -453,11 +454,12 @@ class ProcessLanguages extends Process {
                         $field->value = "There is no translation of the current page’s parent."; 
                     }
                 }
-                
+        echo $cntLang+1;                
                 // add the field to the tab
                 $tab->add($field);
             }
         }
+
         if($cntLang == 0) {
               $field = $this->modules->get("InputfieldMarkup"); 
               $field->label = "Start translating now!";
@@ -470,7 +472,9 @@ class ProcessLanguages extends Process {
         $form->add($tab);
 
         // now add that delete and view link back to the form at the end  
-        $form->add($delete);
+        if($delete) {
+            $form->add($delete);
+        }
         if($view) {
             $form->add($view);
         }
@@ -1534,7 +1538,8 @@ class ProcessLanguages extends Process {
         $p = $this->pages->get('template=admin, name=languages');
         $p->delete();
         // Here the language home template has to be replaced or at least unlocked.
-
+        // Transform home template into normal template and rename it, to avoid conflicts on reinstallation
+    
         $this->db->query("DROP TABLE {$this->table_name}");
         $this->db->query("DROP TABLE {$this->table_name}_pagemap");     
         parent::___uninstall();

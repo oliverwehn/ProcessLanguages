@@ -454,7 +454,7 @@ class ProcessLanguages extends Process {
                         $field->value = "There is no translation of the current page’s parent."; 
                     }
                 }
-        echo $cntLang+1;                
+
                 // add the field to the tab
                 $tab->add($field);
             }

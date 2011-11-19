@@ -15,7 +15,8 @@ class ProcessLanguages extends Process {
         "setLanguage" => null,
         "addLanguageManagement" => null,
         "markNewPage" => null,        
-        "pagemapNewPage" => null
+        "pagemapNewPage" => null,
+        "getErrorPage" => null
         );
 
     public static function getModuleInfo() {
@@ -23,7 +24,7 @@ class ProcessLanguages extends Process {
             'title' => 'Languages',
             'summary' => 'Manage multiple languages.',
             'href' => 'http://processwire.com/talk/index.php/topic,414.0.html',
-            'version' => 007,
+            'version' => 008,
             'permanent' => false,
             'autoload' => true,
             'singular' => true
@@ -58,6 +59,10 @@ class ProcessLanguages extends Process {
         
         // sets hook for catching calls on '/' and leading them to default language’s home page
         $this->hooks['setLanguage'] = $this->addHookBefore('Page::render', $this, 'setLanguage');
+        
+        // sets hook for handling error pages
+		$this->hooks['getErrorPage'] = $this->addHookAfter('ProcessPageView::pageNotFound', $this, 'getErrorPage');
+        
     
     }
     
@@ -454,7 +459,6 @@ class ProcessLanguages extends Process {
                         $field->value = "There is no translation of the current page’s parent."; 
                     }
                 }
-
                 // add the field to the tab
                 $tab->add($field);
             }
@@ -466,7 +470,6 @@ class ProcessLanguages extends Process {
               $field->value = "<a href=\"../../setup/languages/\">Manage Languages</a>";
               $tab->add($field);
         }
-
 
         // add the tab to the form
         $form->add($tab);
@@ -579,7 +582,27 @@ class ProcessLanguages extends Process {
         $this->removeHook($this->hooks['addLanguageManagement']);
     }
     
-
+    /**
+     * Gets correct error page, if path is within a language tree
+     * 
+     */
+    public function getErrorPage($event) {
+        if(preg_match("#^".$this->config->urls->root."([a-z0-9\-_]+/).*$#", $_SERVER['REQUEST_URI'], $match)) {
+            $root_parent = $this->pages->get("/".$match[1]);
+            if(($root_parent->id !== null) && ($code = $this->hasLanguage($root_parent, true))) {
+        		header("HTTP/1.1 404 Page Not Found"); 
+        		$page = $this->pages->get("name=http404".$code); 
+    			if(!$page) throw new WireException("config::http404".$code." does not exist - please place it in the language tree."); 
+    			$this->setFuel('page', $page);
+    			$event->return = $page->render();
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }        
+    }
+    
     
 /******
  ***** language setting, checking
@@ -912,6 +935,18 @@ class ProcessLanguages extends Process {
             $this->_mapPage($home->id, 1, $id, true);
             if($clone) {
                 $this->clonePageTree($clone, $id);
+            }
+            // Create language specific error_page
+            $error = $this->pages->get("/http404/");
+            if($error->id !== null ) {
+                $error_l = new Page();
+                $error_l->template = $error->template;
+                $error_l->parent = $home;
+                $error_l->title = $this->translation_prefix." ".$error->get('title');
+                $error_l->set('body', $error->get('body'));        
+                $error_l->name = 'http404'.$code;
+                $error_l->addStatus(Page::statusHidden);
+                $error_l->save();
             }
         } else {
             $sql = "UPDATE `{$this->table_name}` SET `language` = '$language', `code` = '$code', `default` = '$default', `sync` = '$sync' WHERE id = $id";
@@ -1526,7 +1561,16 @@ class ProcessLanguages extends Process {
         
         $this->db->query($sql_pagemap_entry);       
         
-
+        // Create language specific error_page
+        $error = $this->pages->get("/http404/");
+        $error_l = new Page();
+        $error_l->parent = $home;
+        $error_l->template = $error->template;        
+        $error_l->title = $error->get('title');
+        $error_l->set('body', $error->get('body'));        
+        $error_l->name = 'http404en';
+        $error_l->addStatus(Page::statusHidden);
+        $error_l->save();
     }
 
 

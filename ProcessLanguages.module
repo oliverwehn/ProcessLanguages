@@ -61,9 +61,7 @@ class ProcessLanguages extends Process {
         $this->hooks['setLanguage'] = $this->addHookBefore('Page::render', $this, 'setLanguage');
         
         // sets hook for handling error pages
-		$this->hooks['getErrorPage'] = $this->addHookAfter('ProcessPageView::pageNotFound', $this, 'getErrorPage');
-        
-    
+        $this->hooks['getErrorPage'] = $this->addHookAfter('ProcessPageView::pageNotFound', $this, 'getErrorPage');
     }
     
     /**

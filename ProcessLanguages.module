@@ -594,7 +594,11 @@ class ProcessLanguages extends Process {
     			$this->setFuel('page', $page);
     			$event->return = $page->render();
             } else {
-                return false;
+                if(($lang_d = $this->getLanguage("default")) && ($page = $this->pages->get($this->pages->get($lang_d['home'])->path."http404".$lang_d['code']."/"))) {
+                    $event->return = $page->render();
+                } else {
+                    return false;
+                }
             }
         } else {
             return false;
@@ -685,35 +689,47 @@ class ProcessLanguages extends Process {
     
     /**
      * get language by id
+     * or the default language on $language == "default"
      */ 
     public function getLanguage($language) {
-       if(is_numeric($language)) {
+        if($language == "default") {
            $sql = "
                SELECT
                *
                FROM
                {$this->table_name}
                WHERE
-               `id` = '{$language}'
-               ";    
-       } elseif(is_scalar($language)) {
-           $sql = "
-               SELECT
-               *
-               FROM    
-               {$this->table_name}
-               WHERE
-               `code` = '{$language}'
-               ";              
-       } else {
-           return false;
-       }
-       $result = $this->db->query($sql);
-       if($row = $result->fetch_assoc()) {
-           return $row;
-       } else {
-           return false;
-       }
+               `default` = 1
+               ";            
+        } else {
+           if(is_numeric($language)) {
+               $sql = "
+                   SELECT
+                   *
+                   FROM
+                   {$this->table_name}
+                   WHERE
+                   `id` = '{$language}'
+                   ";    
+           } elseif(is_scalar($language)) {
+               $sql = "
+                   SELECT
+                   *
+                   FROM    
+                   {$this->table_name}
+                   WHERE
+                   `code` = '{$language}'
+                   ";              
+           } else {
+               return false;
+           }
+        }
+        $result = $this->db->query($sql);
+        if($row = $result->fetch_assoc()) {
+            return $row;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -945,6 +961,11 @@ class ProcessLanguages extends Process {
                 $error_l->name = 'http404'.$code;
                 $error_l->addStatus(Page::statusHidden);
                 $error_l->save();
+                if(($lang_d = $this->getLanguage("default")) && ($error_group = $this->_getGroup($this->pages->get($this->pages->get($lang_d['home'])->path."http404".$lang_d['code']."/")))) {
+                    $this->_mapPage($error_l, $error_group, $id, true);
+                } else {
+                    throw new WireException("Couldn’t determine default language.");   
+                }                
             }
         } else {
             $sql = "UPDATE `{$this->table_name}` SET `language` = '$language', `code` = '$code', `default` = '$default', `sync` = '$sync' WHERE id = $id";
@@ -1569,6 +1590,7 @@ class ProcessLanguages extends Process {
         $error_l->name = 'http404en';
         $error_l->addStatus(Page::statusHidden);
         $error_l->save();
+        $this->_mapPage($error_l, $this->_getNewGroup(), $language);        
     }
 
 
